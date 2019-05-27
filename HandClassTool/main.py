@@ -68,12 +68,13 @@ class PoolConnection:
         current_conn = self.get_conn()
         cursor = current_conn.cursor()
         cursor.execute(get_current_file_q)
-        current_ids = np.array(cursor.fetchall())
+        current_ids = np.array(cursor.fetchall(), dtype=np.uint32)
         cursor.close()
         if len(current_ids) > 0:
             start_array = np.arange(max_id, dtype=np.uint32)
+            start_array = np.setdiff1d(start_array, current_ids, assume_unique=True)
             np.random.shuffle(start_array)
-            out = start_array[np.isin(start_array, current_ids, invert=True)]
+            out = start_array
         else:
             out = np.arange(max_id, dtype=np.uint32)
             np.random.shuffle(out)
@@ -89,7 +90,7 @@ async def get_ids_for_cache(request):
     step = 5
     if len(request.app['shuffle_list']) == 0:
         request.app['shuffle_list'].append(request.app['db_pool'][0].get_next_ids(7600000))
-    ret_ids, request.app['shuffle_list'][0] = request.app['shuffle_list'][0][:step], request.app['shuffle_list'][0][step:]
+    ret_ids = request.app['shuffle_list'][0][:step]
     return web.json_response(data=ret_ids.tolist())
 
 async def set_class(request):
@@ -98,6 +99,7 @@ async def set_class(request):
     try:
         data = await request.post()
         file_id = data['file_id']
+        request.app['shuffle_list'][0] = request.app['shuffle_list'][0][1:]
         file_name = data['file_name']
         file_class = data['file_class']
         print(file_id, file_class)
