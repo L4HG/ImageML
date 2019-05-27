@@ -49,7 +49,18 @@ async def get_image(request):
     b64 = False
     req_ids = []
     images_b64 = []
-    image_req = request.match_info['image_req'].split('_')
+    if request.method == 'GET':
+        try:
+            image_req = request.match_info['image_req'].split('_')
+        except:
+            return web.Response(body='Wrong request', content_type='text/html')
+    elif request.method == 'POST':
+        try:
+            data = await request.post()
+            image_req = data['image_req'].split('_')
+        except:
+            return web.Response(body='Wrong request', content_type='text/html')
+
     images = []
     start_step = image_req[0].split(':')
     try:
@@ -180,6 +191,7 @@ async def get_image(request):
 
 app = web.Application()
 app.add_routes([web.get('/imageml/id/{image_req}', get_image)])
+app.add_routes([web.post('/imageml/id', get_image)])
 app['image_dfs'] = []
 
 cors = aiohttp_cors.setup(app, defaults={

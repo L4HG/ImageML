@@ -105,3 +105,5 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+HandClassTool/file_list_store.db
+.DS_Store

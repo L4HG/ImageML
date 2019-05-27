@@ -1,0 +1,164 @@
+<html>
+    <head>
+     <meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+            <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+            <style>
+                    div.main {
+    width: 100%;
+    height:87vh;
+    text-align: center;
+}
+div.image_div {
+    width: 100%;
+    height:77vh;
+    text-align: center;
+}
+img {
+   max-height: 100%;
+   max-width: 100%;
+   width: 100%;
+   object-fit: contain;
+}
+
+button {
+  font-size: 200%;
+  display: inline-block;
+    height: 9vh;
+    padding: 0 15px;
+    min-width: 30.3%;
+    -webkit-appearance: none;
+}
+                    </style>
+    </head>
+ <body>
+     <p style="display: none" id='file_id'></p>
+     <p style="display: none" id='file_coords'></p>
+<div class="main">
+    <div class="image_div">
+        <img src="" id="main_image" />
+    </div>
+  <br/>
+  <p  id=name></p>
+  <br />
+  <button class='but' id="send_class_1">Да_store</button>
+  <button style="display:none" class='but' id="send_class_2">не_то_store</button>
+  <button class='but' id="send_class_3">Нет_store</button>
+  <br/>
+  <input id='only_in' value="0.0|1.0"/>
+</div>
+ </body>
+ <script>
+     $(document).ready(function(){ 
+        var global_i = 0
+        var cache_images = {}
+        var cache_names = {}
+        var last_img_id = ''
+        var image_queue = []
+        var ready_images = []
+        
+        function preloadImages() {
+            $.get("https://home.namezis.com/image_this/get_ids", {})
+                .done(function( data ) {
+                    console.log(data)
+                    console.log(ready_images)
+                    data.forEach(function (arrayItem){
+                        // real_item_1 = -1*arrayItem
+                        real_item_1 = arrayItem
+                        if (!(image_queue.includes(real_item_1)) && !(ready_images.includes(real_item_1))){
+                            image_queue.push(real_item_1);
+                        }
+                    });
+                    console.log(image_queue)
+                    var need_array = ''
+                    data.forEach(function (arrayItem2){
+                        real_item_2 = arrayItem2
+                        if (!(real_item_2 in cache_images)){
+                            need_array = need_array + real_item_2 + ','
+                        }
+                    });
+                    need_array = need_array.substr(0, need_array.length-1);
+                    console.log(need_array)
+                    $.post("https://home.namezis.com/imageml/id", {'image_req':need_array+'_720'+'_1'})
+                            .done(function( data_image ) {
+                                data_image.forEach(function (imageItem2){
+                                    cache_images[imageItem2['image_df_id']] = 'data:image/jpeg;base64,' + imageItem2['image']
+                                    cache_names[imageItem2['image_df_id']] = imageItem2['filename']
+                                });
+                            });
+                    
+                });
+        }
+        preloadImages()
+        $(document).keydown(function(e) {
+        switch (e.which) {
+            case 37: 
+                $("#send_class_1").trigger("click")
+                break;
+            case 38: // up key
+                $("#send_class_2").trigger("click")
+                break;
+            case 39: 
+                $("#send_class_3").trigger("click")
+                break;
+        }
+        });
+        $('#main_image').click(function(e) {
+            var offset = $(this).offset();
+            var img_x = e.pageX - offset.left;
+            var img_y = e.pageY - offset.top;
+            var current_text = $('#file_coords').text()
+            if (current_text === '') {
+                var img = document.getElementById('main_image'); 
+                var width = img.clientWidth;
+                var height = img.clientHeight;
+                $('#file_coords').text(width + '|' + height)
+            }
+            current_text = $('#file_coords').text()
+            $('#file_coords').text(current_text + ';' + img_x + '|' + img_y)
+            mouseX = e.pageX;
+            mouseY = e.pageY
+            var color = '#000000';
+            var size = '10px';
+            $("body").append(
+                $('<div class="dots"></div>')
+                    .css('position', 'absolute')
+                    .css('top', mouseY + 'px')
+                    .css('left', mouseX + 'px')
+                    .css('width', size)
+                    .css('height', size)
+                    .css('background-color', color)
+            );
+            });             
+        $('.but').click(function(){
+            file_id = $('#file_id').text()
+            file_name = $('#name').text()
+            file_class = $(this).text()
+            file_coords = $('#file_coords').text()
+            $.post("https://home.namezis.com/image_this/set_class", { file_id: file_id, file_name: file_name, file_class: file_class, coords:file_coords})
+                .done(function( data ) {
+                    if (data['result'] != 'good'){
+                        alert(JSON.stringify(data))
+                    }
+                });
+            
+            ready_images.push(file_id)
+            ready_images.push(image_queue[0])
+            if (image_queue.length < 4){
+                preloadImages()
+            }
+            var new_file_id = image_queue.shift();
+            console.log(new_file_id)
+            $('#file_id').text(new_file_id)
+            $( ".dots" ).remove();
+            $('#file_coords').text('')
+            if (last_img_id != ''){
+                delete cache_images[last_img_id];
+                delete cache_names[last_img_id];
+            }
+            $('#main_image').attr("src",cache_images[new_file_id]);
+            $('#name').text(cache_names[new_file_id])
+            last_img_id = new_file_id
+    }) 
+}); 
+ </script>
+</html>
