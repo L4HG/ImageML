@@ -45,6 +45,7 @@ class ImageDB:
 
         try:
             file_id = int(file_id)
+            file_id = file_id%len(self.image_df)
             file_df = self.image_df.iloc[file_id]
             file_data['filename'] = file_df['filename']
             file_data['image_format'] = file_df['image_format']
@@ -152,7 +153,7 @@ async def get_image(request):
         if req_size is not None and imgByteData is not None:
             if imghdr.what(filename, h=imgByteData) is not None:
                 image = Image.open(io.BytesIO(imgByteData))
-                image = image_resize(image, req_size)
+                image = image_resize(image, req_size).convert('RGB')
                 imgByteArr = io.BytesIO()
                 if len(req_ids) > 1:
                     images.append(image)
@@ -194,7 +195,7 @@ async def get_image(request):
         if b64:
             return web.json_response(data=images_b64)
         else:
-            if len(req_ids) == 1:
+            if len(req_ids) == 1 and req_size is None:
                 content_type = mimetypes.guess_type(filename)[0]
             else:
                 content_type = 'image/jpeg'
