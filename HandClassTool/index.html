@@ -139,6 +139,9 @@
                     .css('height', size)
                     .css('background-color', color)
             );
+            if ($(".dots").length >=3) {
+                $("#send_class_1").trigger("click")
+            }
             });             
         $('.but').click(function(){
             file_id = $('#file_id').text()
