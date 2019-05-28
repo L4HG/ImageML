@@ -81,7 +81,7 @@
                     });
                     need_array = need_array.substr(0, need_array.length-1);
                     console.log(need_array)
-                    $.post("https://home.namezis.com/imageml/"+ db_name + "_id", {'image_req':need_array+'_720'+'_1'})
+                    $.post("https://home.namezis.com/imageml/id", {'image_req':need_array+'_720'+'_1', 'df_name': db_name})
                             .done(function( data_image ) {
                                 data_image.forEach(function (imageItem2){
                                     if (!(imageItem2['image_df_id'] in cache_images)){
