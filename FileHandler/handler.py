@@ -479,12 +479,33 @@ async def get_image_insta(request):
     else:
         return web.Response(body='No image file', content_type='text/html')
 
+async def get_df_len(request):
+    df_len = 0
+    df_name = './test.db'
+    if request.method == 'GET':
+        try:
+            df_name = request.match_info['df_name']
+            df_name = '././all_images_{}.picklegz'.format(df_name)
+        except:
+            return web.Response(body='Wrong request', content_type='text/html')
+    
+    try:
+        test_df = pd.read_pickle(df_name, compression='gzip')
+        df_len = len(test_df)
+    except Exception as e:
+        print(e)
+        df_len = -1
+    
+    return web.json_response(data={'df_len': df_len})
 
 app = web.Application()
 app.add_routes([web.get('/imageml/id/{image_req}', get_image)])
 app.add_routes([web.get('/imageml/pho_id/{image_req}', get_image_pho)])
 app.add_routes([web.get('/imageml/insta_id/{image_req}', get_image_insta)])
 app.add_routes([web.post('/imageml/id', get_image)])
+app.add_routes([web.post('/imageml/pho_id', get_image_pho)])
+app.add_routes([web.post('/imageml/insta_id', get_image_insta)])
+app.add_routes([web.get('/imageml/df_len/{df_name}', get_df_len)])
 app['image_dfs'] = {}
 
 cors = aiohttp_cors.setup(app, defaults={
@@ -495,7 +516,6 @@ cors = aiohttp_cors.setup(app, defaults={
         )
 })
 
-# Configure CORS on all routes.
 for route in list(app.router.routes()):
     cors.add(route)
 

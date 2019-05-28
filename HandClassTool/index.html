@@ -4,30 +4,30 @@
             <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
             <style>
                     div.main {
-    width: 100%;
-    height:87vh;
-    text-align: center;
-}
-div.image_div {
-    width: 100%;
-    height:77vh;
-    text-align: center;
-}
-img {
-   max-height: 100%;
-   max-width: 100%;
-   width: 100%;
-   object-fit: contain;
-}
+                        width: 100%;
+                        height:84vh;
+                        text-align: center;
+                    }
+                    div.image_div {
+                        width: 100%;
+                        height:74vh;
+                        text-align: center;
+                    }
+                    img {
+                    max-height: 100%;
+                    max-width: 100%;
+                    width: 100%;
+                    object-fit: contain;
+                    }
 
-button {
-  font-size: 200%;
-  display: inline-block;
-    height: 9vh;
-    padding: 0 15px;
-    min-width: 30.3%;
-    -webkit-appearance: none;
-}
+                    button {
+                    font-size: 200%;
+                    display: inline-block;
+                        height: 9vh;
+                        padding: 0 15px;
+                        min-width: 30.3%;
+                        -webkit-appearance: none;
+                    }
                     </style>
     </head>
  <body>
@@ -40,11 +40,11 @@ button {
   <br/>
   <p  id=name></p>
   <br />
-  <button class='but' id="send_class_1">Да_store</button>
-  <button style="display:none" class='but' id="send_class_2">не_то_store</button>
-  <button class='but' id="send_class_3">Нет_store</button>
+  <button class='but' id="send_class_1">Да</button>
+  <button style="display:none" class='but' id="send_class_2">не_то</button>
+  <button class='but' id="send_class_3">Нет</button>
   <br/>
-  <input id='only_in' value="0.0|1.0"/>
+  <button class='but' id="send_class_4">Вернуть прошлое фото</button>
 </div>
  </body>
  <script>
@@ -55,9 +55,11 @@ button {
         var last_img_id = ''
         var image_queue = []
         var ready_images = []
+        var db_name_array = window.location.href.split('/')
+        var db_name = db_name_array[db_name_array.length-1]
         
         function preloadImages() {
-            $.get("https://home.namezis.com/image_this/get_ids", {})
+            $.get("https://home.namezis.com/image_this/get_ids/"+db_name, {})
                 .done(function( data ) {
                     console.log(data)
                     console.log(ready_images)
@@ -65,6 +67,7 @@ button {
                         // real_item_1 = -1*arrayItem
                         real_item_1 = arrayItem
                         if (!(image_queue.includes(real_item_1)) && !(ready_images.includes(real_item_1))){
+                        // if (!(image_queue.includes(real_item_1))){
                             image_queue.push(real_item_1);
                         }
                     });
@@ -78,17 +81,19 @@ button {
                     });
                     need_array = need_array.substr(0, need_array.length-1);
                     console.log(need_array)
-                    $.post("https://home.namezis.com/imageml/id", {'image_req':need_array+'_720'+'_1'})
+                    $.post("https://home.namezis.com/imageml/"+ db_name + "_id", {'image_req':need_array+'_720'+'_1'})
                             .done(function( data_image ) {
                                 data_image.forEach(function (imageItem2){
-                                    cache_images[imageItem2['image_df_id']] = 'data:image/jpeg;base64,' + imageItem2['image']
-                                    cache_names[imageItem2['image_df_id']] = imageItem2['filename']
-                                    new_new_file_id = $('#file_id').text()
-                                    if (new_new_file_id==imageItem2['image_df_id']){
-                                        $('#main_image').attr("src",cache_images[new_new_file_id]);
-                                        $('#name').text(cache_names[new_new_file_id])
-                                        $('.but').prop( "disabled", false );
-                                    } 
+                                    if (!(imageItem2['image_df_id'] in cache_images)){
+                                        cache_images[imageItem2['image_df_id']] = 'data:image/jpeg;base64,' + imageItem2['image']
+                                        cache_names[imageItem2['image_df_id']] = imageItem2['filename']
+                                        var new_new_file_id = $('#file_id').text()
+                                        if (new_new_file_id==imageItem2['image_df_id']){
+                                            $('#main_image').attr("src",cache_images[new_new_file_id]);
+                                            $('#name').text(cache_names[new_new_file_id])
+                                            $('.but').prop( "disabled", false );
+                                        } 
+                                    }
                                 });
                             });
                     
@@ -140,15 +145,25 @@ button {
             file_name = $('#name').text()
             file_class = $(this).text()
             file_coords = $('#file_coords').text()
-            $.post("https://home.namezis.com/image_this/set_class", { file_id: file_id, file_name: file_name, file_class: file_class, coords:file_coords})
+            $.post("https://home.namezis.com/image_this/set_class", { file_id: file_id, 
+            file_name: file_name, 
+            file_class: file_class, 
+            coords:file_coords,
+            df_name: db_name})
                 .done(function( data ) {
                     if (data['result'] != 'good'){
                         alert(JSON.stringify(data))
                     }
                 });
-            
-            ready_images.push(file_id)
-            ready_images.push(image_queue[0])
+            if (file_class != 'Вернуть прошлое фото'){
+                ready_images.push(file_id)
+                ready_images.push(image_queue[0])
+            } else {
+                ready_images.pop();
+                ready_images.pop();
+                ready_images.pop();
+            }
+
             if (image_queue.length < 4){
                 preloadImages()
             }
