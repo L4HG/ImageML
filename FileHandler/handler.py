@@ -10,6 +10,7 @@ import aiohttp_cors
 import aiofiles
 import imghdr
 import pandas as pd
+from collections import deque
 
 def image_resize(img, basewidth):
     wpercent = (basewidth/float(img.size[0]))
@@ -84,8 +85,6 @@ async def get_image(request):
     if len(start_step) > 1:
         try:
             len_id = int(start_step[1])
-            if len_id > 20:
-                len_id = 20
         except Exception as e:
             len_id = 1
             print(e)
@@ -114,7 +113,7 @@ async def get_image(request):
         request.app['image_dfs'][df_name] = ImageDB('./all_images_{}.picklegz'.format(df_name))
     
     imgByteData = None
-    for image_id in req_ids:
+    for image_id in req_ids[:20]:
         test_db_file = request.app['image_dfs'][df_name].return_file(image_id)
         print(test_db_file)
         filename = test_db_file.get('filename', None)
@@ -125,27 +124,34 @@ async def get_image(request):
         imgByteData = None
 
         if filename is not None:
-            if compress_format is not None:
-                archive_filename = compress_file
-                image_in_archive = filename
-                # async with aiofiles.open(archive_filename, mode='rb') as f:
-                #     archiveByteData = await f.read()
-                if compress_format.lower() == 'rar':
-                    # zf = rarfile.RarFile(io.BytesIO(archiveByteData))
-                    zf = rarfile.RarFile(archive_filename)
-                else:
-                    # zf = zipfile.ZipFile(io.BytesIO(archiveByteData))
-                    zf = zipfile.ZipFile(archive_filename)
-                try:
-                    imgByteData = zf.read(image_in_archive)
-                    if imghdr.what(filename, h=imgByteData) is None:
-                        filename = filename + ':no image.html'
-                except KeyError:
-                    print('ERROR: Did not find {image_in_archive} in archive file')
+            cache_key = (archive_filename,filename)
+            if cache_key in request.app['file_cache']:
+                imgByteData = request.app['file_cache'][cache_key]
             else:
-                if isfile(filename):
-                    async with aiofiles.open(filename, mode='rb') as f:
-                        imgByteData = await f.read()
+                if compress_format is not None:
+                    archive_filename = compress_file
+                    image_in_archive = filename
+                    if compress_format.lower() == 'rar':
+                        zf = rarfile.RarFile(archive_filename)
+                    else:
+                        zf = zipfile.ZipFile(archive_filename)
+                    try:
+                        imgByteData = zf.read(image_in_archive)
+                        if imghdr.what(filename, h=imgByteData) is None:
+                            filename = filename + ':no image.html'
+                    except KeyError:
+                        print('ERROR: Did not find {image_in_archive} in archive file')
+                else:
+                    if isfile(filename):
+                        async with aiofiles.open(filename, mode='rb') as f:
+                            imgByteData = await f.read()
+                
+                request.app['file_cache'][cache_key] = imgByteData
+                if cache_key not in request.app['cached_ids']:
+                    request.app['cached_ids'].append(cache_key)
+                for already_key in request.app['file_cache']:
+                    if already_key not in request.app['cached_ids']:
+                        request.app['file_cache'].pop(already_key, None)
 
             
         if len(req_ids) > 1:
@@ -225,7 +231,8 @@ app.add_routes([web.get('/imageml/id/{df_name}/{image_req}', get_image)])
 app.add_routes([web.post('/imageml/id', get_image)])
 app.add_routes([web.get('/imageml/df_len/{df_name}', get_df_len)])
 app['image_dfs'] = {}
-
+app['file_cache'] = {}
+app['cached_ids'] = deque(maxlen=30)
 cors = aiohttp_cors.setup(app, defaults={
     "*": aiohttp_cors.ResourceOptions(
             allow_credentials=True,
