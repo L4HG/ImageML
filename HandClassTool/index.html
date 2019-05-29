@@ -33,6 +33,7 @@
  <body>
      <p style="display: none" id='file_id'></p>
      <p style="display: none" id='file_coords'></p>
+     <p style="display: none" id='image_size'></p>
 <div class="main">
     <div class="image_div">
         <img src="" id="main_image" />
@@ -52,11 +53,13 @@
         var global_i = 0
         var cache_images = {}
         var cache_names = {}
+        var cache_sizes = {}
         var last_img_id = ''
         var image_queue = []
         var ready_images = []
         var db_name_array = window.location.href.split('/')
         var db_name = db_name_array[db_name_array.length-1]
+        var total_w = window.screen.width * window.devicePixelRatio
         
         function preloadImages() {
             $.get("https://home.namezis.com/image_this/get_ids/"+db_name, {})
@@ -81,17 +84,19 @@
                     });
                     need_array = need_array.substr(0, need_array.length-1);
                     console.log(need_array)
-                    $.post("https://home.namezis.com/imageml/id", {'image_req':need_array+'_720'+'_1', 'df_name': db_name})
+                    $.post("https://home.namezis.com/imageml/id", {'image_req':need_array+'_' + total_w +'_1', 'df_name': db_name})
                             .done(function( data_image ) {
                                 data_image.forEach(function (imageItem2){
                                     if (!(imageItem2['image_df_id'] in cache_images)){
-                                        cache_images[imageItem2['image_df_id']] = 'data:image/jpeg;base64,' + imageItem2['image']
+                                        cache_images[imageItem2['image_df_id']] = 'data:image/jpeg;base64,' + imageItem2['image'];
                                         cache_names[imageItem2['image_df_id']] = (imageItem2['archive']?imageItem2['archive']+'//':'') + 
-                                                                                imageItem2['filename']
+                                                                                imageItem2['filename'];
+                                        cache_sizes[imageItem2['image_df_id']] = imageItem2['image_size'];
                                         var new_new_file_id = $('#file_id').text()
                                         if (new_new_file_id==imageItem2['image_df_id']){
                                             $('#main_image').attr("src",cache_images[new_new_file_id]);
                                             $('#name').text(cache_names[new_new_file_id])
+                                            $('#image_size').text(imageItem2['image_size'])
                                             $('.but').prop( "disabled", false );
                                         } 
                                     }
@@ -147,13 +152,15 @@
         $('.but').click(function(){
             file_id = $('#file_id').text()
             file_name = $('#name').text()
+            image_size = $('#image_size').text()
             file_class = $(this).text()
             file_coords = $('#file_coords').text()
             $.post("https://home.namezis.com/image_this/set_class", { file_id: file_id, 
             file_name: file_name, 
             file_class: file_class, 
             coords:file_coords,
-            df_name: db_name})
+            df_name: db_name,
+            image_size: image_size})
                 .done(function( data ) {
                     if (data['result'] != 'good'){
                         alert(JSON.stringify(data))
@@ -183,6 +190,7 @@
             if ((new_file_id in cache_images)) {
                 $('#main_image').attr("src",cache_images[new_file_id]);
                 $('#name').text(cache_names[new_file_id])
+                $('#image_size').text(cache_sizes[new_file_id])
             } else {
                 $('.but').prop( "disabled", true );
             }

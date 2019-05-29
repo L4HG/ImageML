@@ -33,6 +33,7 @@ create_table_q = '''
                         file_name TEXT,
                         class TEXT,
                         coords TEXT,
+                        image_size TEXT,
                         datetime class_at int);
                 '''
 add_class_q = '''
@@ -40,10 +41,11 @@ add_class_q = '''
                         file_id,
                         file_name, 
                         class,
-                        coords, 
+                        coords,
+                        image_size, 
                         datetime
                     ) VALUES (
-                        ?,?,?,?,strftime('%s','now')
+                        ?,?,?,?,?,strftime('%s','now')
                     )
             '''
 get_current_file_q = '''
@@ -131,6 +133,7 @@ async def set_class(request):
         file_id = data['file_id']
         file_name = data['file_name']
         file_class = data['file_class']
+        image_size = data['image_size']
         print(file_id, file_class)
         file_coords = data['coords']
         try:
@@ -148,7 +151,7 @@ async def set_class(request):
         if len(file_id) > 0:
             current_conn = request.app['db_pool'][df_name].get_conn()
             cursor = current_conn.cursor()
-            cursor.execute(add_class_q, (file_id, file_name, file_class, file_coords))
+            cursor.execute(add_class_q, (file_id, file_name, file_class, file_coords, image_size))
             current_conn.commit()
             cursor.close()
         ret_data['result'] = 'good'

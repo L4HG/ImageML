@@ -62,6 +62,7 @@ async def get_image(request):
     req_ids = []
     images_b64 = []
     df_name = ''
+    image_size = None
     if request.method == 'GET':
         try:
             image_req = request.match_info['image_req'].split('_')
@@ -163,6 +164,7 @@ async def get_image(request):
                     images.append(image)
                 image.save(imgByteArr, format='JPEG')
                 imgByteData = imgByteArr.getvalue()
+                image_size = 'x'.join(image.size)
 
         if b64:
             if imgByteData is not None:
@@ -170,14 +172,16 @@ async def get_image(request):
                     'image':str(base64.b64encode(imgByteData))[2:-1], 
                     'image_df_id':image_id, 
                     'filename': filename,
-                    'archive': compress_file
+                    'archive': compress_file,
+                    'image_size': image_size,
                     }
             else:
                 new_image64 = {
                     'image':'', 
                     'image_df_id':image_id, 
                     'filename': filename,
-                    'archive': compress_file
+                    'archive': compress_file,
+                    'image_size': image_size,
                     }
             images_b64.append(new_image64)
     
