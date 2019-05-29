@@ -128,12 +128,14 @@ async def get_image(request):
             if compress_format is not None:
                 archive_filename = compress_file
                 image_in_archive = filename
-                async with aiofiles.open(archive_filename, mode='rb') as f:
-                    archiveByteData = await f.read()
+                # async with aiofiles.open(archive_filename, mode='rb') as f:
+                #     archiveByteData = await f.read()
                 if compress_format.lower() == 'rar':
-                    zf = rarfile.RarFile(io.BytesIO(archiveByteData))
+                    # zf = rarfile.RarFile(io.BytesIO(archiveByteData))
+                    zf = rarfile.RarFile(archive_filename)
                 else:
-                    zf = zipfile.ZipFile(io.BytesIO(archiveByteData))
+                    # zf = zipfile.ZipFile(io.BytesIO(archiveByteData))
+                    zf = zipfile.ZipFile(archive_filename)
                 try:
                     imgByteData = zf.read(image_in_archive)
                     if imghdr.what(filename, h=imgByteData) is None:

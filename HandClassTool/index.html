@@ -86,7 +86,8 @@
                                 data_image.forEach(function (imageItem2){
                                     if (!(imageItem2['image_df_id'] in cache_images)){
                                         cache_images[imageItem2['image_df_id']] = 'data:image/jpeg;base64,' + imageItem2['image']
-                                        cache_names[imageItem2['image_df_id']] = imageItem2['filename']
+                                        cache_names[imageItem2['image_df_id']] = (imageItem2['archive']?imageItem2['archive']+'//':'') + 
+                                                                                imageItem2['filename']
                                         var new_new_file_id = $('#file_id').text()
                                         if (new_new_file_id==imageItem2['image_df_id']){
                                             $('#main_image').attr("src",cache_images[new_new_file_id]);
