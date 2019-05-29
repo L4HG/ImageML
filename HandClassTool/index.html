@@ -59,7 +59,7 @@
         var ready_images = []
         var db_name_array = window.location.href.split('/')
         var db_name = db_name_array[db_name_array.length-1]
-        var total_w = window.screen.width * window.devicePixelRatio
+        var total_w = 720
         
         function preloadImages() {
             $.get("https://home.namezis.com/image_this/get_ids/"+db_name, {})
@@ -134,7 +134,7 @@
             $('#file_coords').text(current_text + ';' + img_x + '|' + img_y)
             mouseX = e.pageX;
             mouseY = e.pageY
-            var color = '#000000';
+            var color = '#FF0000';
             var size = '10px';
             $("body").append(
                 $('<div class="dots"></div>')

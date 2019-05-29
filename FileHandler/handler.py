@@ -145,7 +145,7 @@ async def get_image(request):
                     if isfile(filename):
                         async with aiofiles.open(filename, mode='rb') as f:
                             imgByteData = await f.read()
-                print(test_db_file)
+                print(test_db_file, len(imgByteData))
                 request.app['file_cache'][cache_key] = imgByteData
                 if len(request.app['file_cache']) > 50:
                     remove_cache = request.app['file_cache'].popitem(last=False)
@@ -154,17 +154,21 @@ async def get_image(request):
         if len(req_ids) > 1:
             if req_size is None:
                 req_size = 1080
+        
+        if req_size > 4000:
+            req_size = 4000
 
         if req_size is not None and imgByteData is not None:
             if imghdr.what(filename, h=imgByteData) is not None:
                 image = Image.open(io.BytesIO(imgByteData))
                 image = image_resize(image, req_size).convert('RGB')
                 imgByteArr = io.BytesIO()
-                if len(req_ids) > 1:
-                    images.append(image)
                 image.save(imgByteArr, format='JPEG')
                 imgByteData = imgByteArr.getvalue()
-                image_size = 'x'.join(image.size)
+                if len(req_ids) > 1:
+                    images.append(image)
+                print('resize to {} with len {}kb'.format(image.size, int(len(imgByteData)/1024)))
+                image_size = 'w{}h{}'.format(image.size[0], image.size[1])
 
         if b64:
             if imgByteData is not None:
