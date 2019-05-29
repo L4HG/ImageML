@@ -124,7 +124,7 @@ async def get_image(request):
         imgByteData = None
 
         if filename is not None:
-            cache_key = (archive_filename,filename)
+            cache_key = (compress_file, filename)
             if cache_key in request.app['file_cache']:
                 imgByteData = request.app['file_cache'][cache_key]
             else:
@@ -232,7 +232,7 @@ app.add_routes([web.post('/imageml/id', get_image)])
 app.add_routes([web.get('/imageml/df_len/{df_name}', get_df_len)])
 app['image_dfs'] = {}
 app['file_cache'] = {}
-app['cached_ids'] = deque(maxlen=30)
+app['cached_ids'] = deque(maxlen=50)
 cors = aiohttp_cors.setup(app, defaults={
     "*": aiohttp_cors.ResourceOptions(
             allow_credentials=True,
