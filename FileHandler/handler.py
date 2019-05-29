@@ -10,7 +10,7 @@ import aiohttp_cors
 import aiofiles
 import imghdr
 import pandas as pd
-from collections import deque
+from collections import deque, OrderedDict
 
 def image_resize(img, basewidth):
     wpercent = (basewidth/float(img.size[0]))
@@ -113,9 +113,8 @@ async def get_image(request):
         request.app['image_dfs'][df_name] = ImageDB('./all_images_{}.picklegz'.format(df_name))
     
     imgByteData = None
-    for image_id in req_ids[:20]:
+    for image_id in req_ids[:30]:
         test_db_file = request.app['image_dfs'][df_name].return_file(image_id)
-        print(test_db_file)
         filename = test_db_file.get('filename', None)
         image_format = test_db_file.get('image_format', None)
         compress_file = test_db_file.get('compress_file', None)
@@ -145,15 +144,12 @@ async def get_image(request):
                     if isfile(filename):
                         async with aiofiles.open(filename, mode='rb') as f:
                             imgByteData = await f.read()
-                
+                print(test_db_file)
                 request.app['file_cache'][cache_key] = imgByteData
-                if cache_key not in request.app['cached_ids']:
-                    request.app['cached_ids'].append(cache_key)
-                for already_key in request.app['file_cache']:
-                    if already_key not in request.app['cached_ids']:
-                        request.app['file_cache'].pop(already_key, None)
-
-            
+                if len(request.app['file_cache']) > 50:
+                    remove_cache = request.app['file_cache'].popitem(last=False)
+                    # print('remove {} from cache'.format(remove_cache))
+                    
         if len(req_ids) > 1:
             if req_size is None:
                 req_size = 1080
@@ -231,8 +227,7 @@ app.add_routes([web.get('/imageml/id/{df_name}/{image_req}', get_image)])
 app.add_routes([web.post('/imageml/id', get_image)])
 app.add_routes([web.get('/imageml/df_len/{df_name}', get_df_len)])
 app['image_dfs'] = {}
-app['file_cache'] = {}
-app['cached_ids'] = deque(maxlen=50)
+app['file_cache'] = OrderedDict()
 cors = aiohttp_cors.setup(app, defaults={
     "*": aiohttp_cors.ResourceOptions(
             allow_credentials=True,
