@@ -34,7 +34,10 @@ create_table_q = '''
                         class TEXT,
                         coords TEXT,
                         image_size TEXT,
-                        datetime class_at int);
+                        time_to_select int,
+                        class_type TEXT,  
+                        df_name TEXT,
+                        datetime int);
                 '''
 add_class_q = '''
                     INSERT INTO file_classes (
@@ -43,27 +46,32 @@ add_class_q = '''
                         class,
                         coords,
                         image_size, 
+                        time_to_select,
+                        class_type,
+                        df_name,
                         datetime
                     ) VALUES (
-                        ?,?,?,?,?,strftime('%s','now')
+                        ?,?,?,?,?,?,?,?,strftime('%s','now')
                     )
             '''
 get_current_file_q = '''
-                    SELECT file_id FROM file_classes
+                    SELECT file_id FROM file_classes WHERE df_name=?
                     '''
 
 class PoolConnection:
     current_conn = None
     db_name = None
+    db_file = None
 
     def __init__(self, db_name):
-        self.db_name = 'file_list_{}.db'.format(db_name)
+        self.db_file = 'file_list_{}.db'.format('main')
+        self.db_name = db_name
 
     def get_conn(self):
         if self.current_conn is not None:
             return self.current_conn
         else:
-            self.curren_conn = sqlite3.connect(self.db_name)
+            self.curren_conn = sqlite3.connect(self.db_file)
             return self.curren_conn
         
     def create_tables(self):
@@ -76,7 +84,7 @@ class PoolConnection:
     def get_next_ids(self, max_id):
         current_conn = self.get_conn()
         cursor = current_conn.cursor()
-        cursor.execute(get_current_file_q)
+        cursor.execute(get_current_file_q, (self.db_name, ))
         current_ids = np.array(cursor.fetchall(), dtype=np.uint32)
         cursor.close()
         if len(current_ids) > 0:
@@ -134,7 +142,9 @@ async def set_class(request):
         file_name = data['file_name']
         file_class = data['file_class']
         image_size = data['image_size']
-        print(file_id, file_class)
+        time_to_select = data['time_to_select']
+        class_type = data['class_type']
+        # print(data)
         file_coords = data['coords']
         try:
             request.app['last_file_ids'][df_name].append((int(file_id), file_name))
@@ -151,7 +161,12 @@ async def set_class(request):
         if len(file_id) > 0:
             current_conn = request.app['db_pool'][df_name].get_conn()
             cursor = current_conn.cursor()
-            cursor.execute(add_class_q, (file_id, file_name, file_class, file_coords, image_size))
+            cursor.execute(add_class_q, (
+                file_id, file_name, 
+                file_class, file_coords, 
+                image_size, time_to_select, 
+                class_type,  df_name,
+                ))
             current_conn.commit()
             cursor.close()
         ret_data['result'] = 'good'

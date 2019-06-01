@@ -34,6 +34,7 @@
      <p style="display: none" id='file_id'></p>
      <p style="display: none" id='file_coords'></p>
      <p style="display: none" id='image_size'></p>
+     <p style="display: none" id='show_time'></p>
 <div class="main">
     <div class="image_div">
         <img src="" id="main_image" />
@@ -46,6 +47,8 @@
   <button class='but' id="send_class_3">Нет</button>
   <br/>
   <button class='but' id="send_class_4">Вернуть прошлое фото</button>
+  <br/>
+  <input type="text" id="class_type"/>
 </div>
  </body>
  <script>
@@ -59,6 +62,7 @@
         var ready_images = []
         var db_name_array = window.location.href.split('/')
         var db_name = db_name_array[db_name_array.length-1]
+        $('#class_type').val('Красота')
         var total_w = 720
         
         function preloadImages() {
@@ -97,6 +101,7 @@
                                             $('#main_image').attr("src",cache_images[new_new_file_id]);
                                             $('#name').text(cache_names[new_new_file_id])
                                             $('#image_size').text(imageItem2['image_size'])
+                                            $('#show_time').text(Date.now())
                                             $('.but').prop( "disabled", false );
                                         } 
                                     }
@@ -155,12 +160,17 @@
             image_size = $('#image_size').text()
             file_class = $(this).text()
             file_coords = $('#file_coords').text()
+            show_time = parseInt($('#show_time').text())
+            class_type = $('#class_type').val()
+            time_elapse = Date.now() - show_time
             $.post("https://home.namezis.com/image_this/set_class", { file_id: file_id, 
             file_name: file_name, 
             file_class: file_class, 
             coords:file_coords,
             df_name: db_name,
-            image_size: image_size})
+            image_size: image_size,
+            time_to_select: time_elapse,
+            class_type: class_type})
                 .done(function( data ) {
                     if (data['result'] != 'good'){
                         alert(JSON.stringify(data))
@@ -191,6 +201,7 @@
                 $('#main_image').attr("src",cache_images[new_file_id]);
                 $('#name').text(cache_names[new_file_id])
                 $('#image_size').text(cache_sizes[new_file_id])
+                $('#show_time').text(Date.now())
             } else {
                 $('.but').prop( "disabled", true );
             }
