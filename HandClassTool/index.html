@@ -49,10 +49,33 @@
   <button class='but' id="send_class_4">Вернуть прошлое фото</button>
   <br/>
   <input type="text" id="class_type"/>
+  <input type="text" id="user_id"/>
 </div>
  </body>
  <script>
-     $(document).ready(function(){ 
+        function setCookie(name,value,days) {
+            var expires = "";
+            if (days) {
+                var date = new Date();
+                date.setTime(date.getTime() + (days*24*60*60*1000));
+                expires = "; expires=" + date.toUTCString();
+            }
+            document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+        }
+        function getCookie(name) {
+            var nameEQ = name + "=";
+            var ca = document.cookie.split(';');
+            for(var i=0;i < ca.length;i++) {
+                var c = ca[i];
+                while (c.charAt(0)==' ') c = c.substring(1,c.length);
+                if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+            }
+            return null;
+        }
+        function eraseCookie(name) {   
+            document.cookie = name+'=; Max-Age=-99999999;';  
+        }
+    $(document).ready(function(){ 
         var global_i = 0
         var cache_images = {}
         var cache_names = {}
@@ -62,9 +85,22 @@
         var ready_images = []
         var db_name_array = window.location.href.split('/')
         var db_name = db_name_array[db_name_array.length-1]
+        var user_id = getCookie('user_id')
+        $('#user_id').val(user_id)
         $('#class_type').val('Красота')
         var total_w = 720
-        
+        function FindPosition(oElement) {
+            if(typeof( oElement.offsetParent ) != "undefined") {
+                for(var posX = 0, posY = 0; oElement; oElement = oElement.offsetParent) {
+                    posX += oElement.offsetLeft;
+                    posY += oElement.offsetTop;
+                }
+                return [ posX, posY ];
+            }
+            else {
+                    return [ oElement.x, oElement.y ];
+            }
+        }
         function preloadImages() {
             $.get("https://home.namezis.com/image_this/get_ids/"+db_name, {})
                 .done(function( data ) {
@@ -107,10 +143,11 @@
                                     }
                                 });
                             });
+                    $('.but').prop( "disabled", false );
                     
                 });
         }
-        preloadImages()
+        // preloadImages()
         $(document).keydown(function(e) {
         switch (e.which) {
             case 37: 
@@ -123,6 +160,9 @@
                 $("#send_class_3").trigger("click")
                 break;
         }
+        });
+        $('#user_id').change(function() {
+            setCookie('user_id', $('#user_id').val())
         });
         $('#main_image').click(function(e) {
             var offset = $(this).offset();
@@ -163,6 +203,11 @@
             show_time = parseInt($('#show_time').text())
             class_type = $('#class_type').val()
             time_elapse = Date.now() - show_time
+            if (image_queue.length < 1) {
+                preloadImages()
+                $('.but').prop( "disabled", true );
+                return
+            }
             $.post("https://home.namezis.com/image_this/set_class", { file_id: file_id, 
             file_name: file_name, 
             file_class: file_class, 

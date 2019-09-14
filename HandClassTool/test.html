@@ -1,0 +1,117 @@
+<html>
+    <head>
+     <meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+            <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+            <style>
+                    div.main {
+                        width: 100%;
+                        height:84vh;
+                        text-align: center;
+                    }
+                    div.image_div {
+                        width: 100%;
+                        height:74vh;
+                        text-align: center;
+                    }
+                    img {
+                    max-height: 100%;
+                    max-width: 100%;
+                    width: 100%;
+                    object-fit: contain;
+                    }
+
+                    button {
+                    font-size: 200%;
+                    display: inline-block;
+                        height: 9vh;
+                        padding: 0 15px;
+                        min-width: 30.3%;
+                        -webkit-appearance: none;
+                    }
+                    </style>
+    </head>
+ <body>
+     <p style="display: none" id='file_coords'></p>
+<div class="main">
+    <div class="image_div">
+        <img src="https://www.livemint.com/rf/Image-621x414/LiveMint/Period2/2018/10/11/Photos/Home%20Page/iStock-477907720-kRrH--621x414@LiveMint.jpg" id="main_image" />
+    </div>
+  <br/>
+  <p  id=name></p>
+  <br />
+  <button class='but' id="send_class_0">Отменить</button>
+  <button class='but' id="send_class_1">Отправить</button>
+</div>
+ </body>
+ <script>
+    $(document).ready(function(){ 
+        var dot_1 = [0,0]
+        $('#main_image').click(function(e) {
+            var offset = $(this).offset();
+            var img_x = e.pageX - offset.left;
+            var img_y = e.pageY - offset.top;
+            var current_text = $('#file_coords').text()
+            if (current_text === '') {
+                var img = document.getElementById('main_image'); 
+                var width = img.clientWidth;
+                var height = img.clientHeight;
+                $('#file_coords').text(width + '|' + height)
+            }
+            current_text = $('#file_coords').text()
+            $('#file_coords').text(current_text + ';' + img_x + '|' + img_y)
+            mouseX = e.pageX;
+            mouseY = e.pageY;
+            var color = '#FF0000';
+            var size = '10px';
+            if ($(".dots").length ==0) {
+                dot_1 = [mouseX, mouseY]
+                $("body").append(
+                    $('<div class="dots"></div>')
+                        .css('position', 'absolute')
+                        .css('top', mouseY + 'px')
+                        .css('left', mouseX + 'px')
+                        .css('width', size)
+                        .css('height', size)
+                        .css('background-color', color)
+                        .css('opacity', '0.5')
+                );
+            } else if ($(".dots").length ==1){
+                $( ".dots" ).remove();
+                $("body").append(
+                    $('<div class="dots"></div>')
+                        .css('position', 'absolute')
+                        .css('top', Math.min(dot_1[1],mouseY) + 'px')
+                        .css('left', Math.min(dot_1[0],mouseX) + 'px')
+                        .css('width', Math.abs(dot_1[0]-mouseX)+'px')
+                        .css('height', Math.abs(dot_1[1]-mouseY)+'px')
+                        .css('background-color', color)
+                        .css('opacity', 0.5)
+                );
+            }
+            
+            
+            });             
+        $('.but').click(function(){
+            file_coords = $('#file_coords').text()
+            coords = file_coords.split('|')
+            file_class = $(this).text()
+            if (file_class == 'Отменить'){
+                $( ".dots" ).remove();
+                $('#file_coords').text('')
+            }
+            if (file_class == 'Отправить'){
+                alert(coords.length)
+                if (coords.length == 4) {
+                    $.post("http://127.0.0.1/set_door", {coords:file_coords,}).done(function( data ) {
+                        if (data['result'] != 'good'){
+                            alert(JSON.stringify(data))
+                        }
+                    });
+                } else {
+                    alert('no current data')
+                }
+            }
+        }) 
+    }); 
+ </script>
+</html>

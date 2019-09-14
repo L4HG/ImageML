@@ -10,7 +10,46 @@ import aiohttp_cors
 import aiofiles
 import imghdr
 import pandas as pd
+import os
 from collections import deque, OrderedDict
+
+abspath = os.path.abspath(__file__)
+dname = os.path.dirname(abspath)
+os.chdir(dname)
+
+from collections import OrderedDict, MutableMapping
+
+class Cache(MutableMapping):
+    def __init__(self, maxlen, items=None):
+        self._maxlen = maxlen
+        self.d = OrderedDict()
+        if items:
+            for k, v in items:
+                self[k] = v
+
+    @property
+    def maxlen(self):
+        return self._maxlen
+
+    def __getitem__(self, key):
+        self.d.move_to_end(key)
+        return self.d[key]
+
+    def __setitem__(self, key, value):
+        if key in self.d:
+            self.d.move_to_end(key)
+        elif len(self.d) == self.maxlen:
+            self.d.popitem(last=False)
+        self.d[key] = value
+
+    def __delitem__(self, key):
+        del self.d[key]
+
+    def __iter__(self):
+        return self.d.__iter__()
+
+    def __len__(self):
+        return len(self.d)
 
 def image_resize(img, basewidth):
     wpercent = (basewidth/float(img.size[0]))
@@ -24,6 +63,7 @@ class ImageDB:
     image_df = None
     
     def __init__ (self, df_path):
+        self.names_cache = Cache(10)
         try:
             self.image_df = pd.read_pickle(df_path, 'gzip')
         except Exception as e:
@@ -55,6 +95,15 @@ class ImageDB:
         except Exception as e:
             file_data['filename'] = str(e)
         return file_data
+    
+    def return_ids_by_name(self, name):
+        if name not in self.names_cache:
+            ret_ids = self.image_df[self.image_df['filename'].str.contains(name, case=False, na = False)|
+                                    self.image_df['compress_file'].str.contains(name, case=False, na = False)].index
+            self.names_cache[name] = ret_ids
+        else:
+            ret_ids = self.names_cache[name]
+        return ret_ids
 
 async def get_image(request):
     req_size = None
@@ -77,24 +126,54 @@ async def get_image(request):
         except:
             return web.Response(body='Wrong request', content_type='text/html')
 
+    if df_name not in request.app['image_dfs']:
+        try:
+            db_filename = './all_images_{}.picklegz'.format(df_name)
+            print('open db with name {}'.format(db_filename))
+            request.app['image_dfs'][df_name] = ImageDB(db_filename)
+        except Exception as e:
+            return web.Response(body='No DB File {}'.format(db_filename), content_type='text/html')
+
     images = []
     start_step = image_req[0].split(':')
+    names_ids = None
     try:
-        id_row = int(start_step[0])
+        if start_step[0].isdigit():
+            id_row = int(start_step[0])
+        else:
+            names_ids = request.app['image_dfs'][df_name].return_ids_by_name(start_step[0])
+            id_row = names_ids[0]
     except Exception as e:
         id_row = 0
     if len(start_step) > 1:
         try:
-            len_id = int(start_step[1])
+            if start_step[1] == '':
+                len_id = 1
+            else:
+                len_id = int(start_step[1])
+            if len(start_step) > 2:
+                start_id = int(start_step[2])
+            else:
+                start_id = 0
         except Exception as e:
             len_id = 1
             print(e)
-        req_ids = [id_row+i for i in range(len_id)]
+        if names_ids is None:
+            req_ids = [id_row+i for i in range(len_id)]
+        else:
+            if len(names_ids) > 0:
+                start_id = start_id % len(names_ids)
+                req_ids = names_ids[start_id:start_id+len_id]
+            else:
+                req_ids = [0]
     else:
-        try:
-            req_ids = [int(x) for x in start_step[0].split(',')]
-        except Exception as e:
-            print(e)
+        if len(start_step[0].split(',')) > 1:
+            try:
+                req_ids = [int(x) for x in start_step[0].split(',')]
+            except Exception as e:
+                print(e)
+        else:
+            req_ids = [id_row]
 
     if len(image_req) > 1:
         try:
@@ -109,12 +188,12 @@ async def get_image(request):
             except Exception as e:
                 print(e)
     
-    
-    if df_name not in request.app['image_dfs']:
-        request.app['image_dfs'][df_name] = ImageDB('./all_images_{}.picklegz'.format(df_name))
-    
     imgByteData = None
-    for image_id in req_ids[:30]:
+    if names_ids is None:
+    	req_ids = req_ids[:20]
+    else:
+    	req_ids = req_ids[:50]
+    for image_id in req_ids:
         test_db_file = request.app['image_dfs'][df_name].return_file(image_id)
         filename = test_db_file.get('filename', None)
         image_format = test_db_file.get('image_format', None)
@@ -141,6 +220,10 @@ async def get_image(request):
                             filename = filename + ':no image.html'
                     except KeyError:
                         print('ERROR: Did not find {image_in_archive} in archive file')
+                    except Exception as e:
+                    	imgByteData = None
+                    	filename = filename + ':no image.html'
+                    	print(e)
                 else:
                     if isfile(filename):
                         async with aiofiles.open(filename, mode='rb') as f:
@@ -155,7 +238,7 @@ async def get_image(request):
             if req_size is None:
                 req_size = 1080
         
-        if req_size > 4000:
+        if req_size is not None and req_size > 4000:
             req_size = 4000
 
         if req_size is not None and imgByteData is not None:
