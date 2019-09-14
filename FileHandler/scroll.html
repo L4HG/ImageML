@@ -1,0 +1,57 @@
+<html>
+    <head>
+     <meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+        <script src="https://unpkg.com/infinite-scroll@3/dist/infinite-scroll.pkgd.min.js"></script>
+        <style>
+            div.main {
+                width: 100%;
+            }
+            img {
+            max-height: 100%;
+            max-width: 100%;
+            width: 100%;
+            object-fit: contain;
+            }
+        </style>
+    </head>
+    <body>
+        <input type="text" id="start_string"/> <button id="start_button">Start</button>
+        <br/>
+        <div class="images">
+        </div>
+    </body>
+    <script>
+        $(document).ready(function(){ 
+            $('.but').click(function(){
+                start_string = $('#start_string').text()
+                if (start_string != ''){
+                    //start_string = 'insta/kirill:c1:0'
+                    start_string_array = start_string.split(':')
+                    if (start_string_array.length == 3){
+                        start_id = start_string_array[2]
+                        currect_id = start_id
+                        document.addEventListener("scroll", function (event) {
+                            checkForNewDiv();
+                        });
+
+                        var checkForNewDiv = function() {
+                            var lastDiv = document.querySelector("#images > div:last-child");
+                            var lastDivOffset = lastDiv.offsetTop + lastDiv.clientHeight;
+                            var pageOffset = window.pageYOffset + window.innerHeight;
+
+                            if(pageOffset > lastDivOffset - 20) {
+                                var newDiv = document.createElement("div");
+                                new_image_path = [start_string_array[0],start_string_array[1],currect_id].join(':')
+                                newDiv.innerHTML = "<img src=/imageml/id/" + new_image_path + "/>";
+                                currect_id = currect_id + 1
+                                document.getElementById("scroll-content").appendChild(newDiv);
+                                checkForNewDiv();
+                            }
+                        };
+                    }
+                }
+            });
+        }); 
+    </script>
+</html>

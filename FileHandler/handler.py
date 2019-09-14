@@ -51,10 +51,15 @@ class Cache(MutableMapping):
     def __len__(self):
         return len(self.d)
 
-def image_resize(img, basewidth):
-    wpercent = (basewidth/float(img.size[0]))
-    hsize = int((float(img.size[1])*float(wpercent)))
-    img = img.resize((basewidth,hsize), Image.ANTIALIAS)
+def image_resize(img, basewidth, max_sizes=False):
+    if not max_sizes or img.size[0] > img.size[1]:
+        wpercent = (basewidth/float(img.size[0]))
+        hsize = int((float(img.size[1])*float(wpercent)))
+        img = img.resize((basewidth,hsize), Image.ANTIALIAS)
+    else:
+        hpercent = (basewidth/float(img.size[1]))
+        wsize = int((float(img.size[0])*float(hpercent)))
+        img = img.resize((wsize,basewidth), Image.ANTIALIAS)
     return img
 
 
@@ -107,6 +112,8 @@ class ImageDB:
 
 async def get_image(request):
     req_size = None
+    max_size = False
+    next_cache = False
     b64 = False
     req_ids = []
     images_b64 = []
@@ -145,8 +152,19 @@ async def get_image(request):
             id_row = names_ids[0]
     except Exception as e:
         id_row = 0
+
+    if len(image_req) > 3:
+        try:
+            next_cache = int(image_req[3])
+        except Exception as e:
+            print(e)
+
     if len(start_step) > 1:
         try:
+            if len(start_step[1]) > 0:
+                if start_step[1][0] == 'c':
+                    next_cache = True
+                    start_step[1] = start_step[1][1:]
             if start_step[1] == '':
                 len_id = 1
             else:
@@ -158,6 +176,10 @@ async def get_image(request):
         except Exception as e:
             len_id = 1
             print(e)
+
+        if next_cache:
+            len_id = len_id + 1
+            
         if names_ids is None:
             req_ids = [id_row+i for i in range(len_id)]
         else:
@@ -177,7 +199,10 @@ async def get_image(request):
 
     if len(image_req) > 1:
         try:
-            req_size = int(image_req[1])
+            if len(image_req[1]) > 0:
+                if image_req[1][0] == 'm':
+                    max_size = True
+                req_size = int(image_req[1])
         except Exception as e:
             pass
             # print(e)
@@ -244,7 +269,7 @@ async def get_image(request):
         if req_size is not None and imgByteData is not None:
             if imghdr.what(filename, h=imgByteData) is not None:
                 image = Image.open(io.BytesIO(imgByteData))
-                image = image_resize(image, req_size).convert('RGB')
+                image = image_resize(image, req_size, max_size).convert('RGB')
                 imgByteArr = io.BytesIO()
                 image.save(imgByteArr, format='JPEG')
                 imgByteData = imgByteArr.getvalue()
@@ -272,6 +297,9 @@ async def get_image(request):
                     }
             images_b64.append(new_image64)
     
+    if next_cache and len(images) > 1:
+        images = images[:-1]
+        images_b64 = images_b64[:-1]
     if len(images) > 1 and not b64:
         widths, heights = zip(*(i.size for i in images))
         max_width = max(widths)
@@ -301,22 +329,34 @@ async def get_image(request):
 async def get_df_len(request):
     df_len = 0
     df_name = './test.db'
+    search_name = ''
     if request.method == 'GET':
         try:
-            df_name = request.match_info['df_name']
+            df_name_full = request.match_info['df_name'].split(':')
+            df_name = df_name_full[0]
+            if len(df_name_full) > 0:
+                search_name = df_name_full[1]
             if df_name not in request.app['image_dfs']:
                 request.app['image_dfs'][df_name] = ImageDB('./all_images_{}.picklegz'.format(df_name))
             
-            df_len = request.app['image_dfs'][df_name].get_len()
+            if search_name == '':
+                df_len = request.app['image_dfs'][df_name].get_len()
+            else:
+                df_len = len(request.app['image_dfs'][df_name].return_ids_by_name(search_name))
         except:
             return web.Response(body='Wrong request', content_type='text/html')
     
     return web.json_response(data={'df_len': df_len})
 
+async def get_scroll(request):
+    ret_resp = web.FileResponse('scroll.html')
+    return ret_resp
+
 app = web.Application()
 app.add_routes([web.get('/imageml/id/{df_name}/{image_req}', get_image)])
 app.add_routes([web.post('/imageml/id', get_image)])
 app.add_routes([web.get('/imageml/df_len/{df_name}', get_df_len)])
+app.add_routes([web.get('/imageml/scroll', get_df_len)])
 app['image_dfs'] = {}
 app['file_cache'] = OrderedDict()
 cors = aiohttp_cors.setup(app, defaults={
