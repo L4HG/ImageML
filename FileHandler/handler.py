@@ -93,9 +93,9 @@ class ImageDB:
             file_id = int(file_id)
             file_id = file_id%len(self.image_df)
             file_df = self.image_df.iloc[file_id]
-            file_data['filename'] = file_df['filename']
+            file_data['filename'] = file_df['filename'].replace('/Volumes/Store', '/media/oldstore')
             file_data['image_format'] = file_df['image_format']
-            file_data['compress_file'] = file_df['compress_file']
+            file_data['compress_file'] = file_df['compress_file'].replace('/Volumes/Store', '/media/oldstore')
             file_data['compress_format'] = file_df['compress_format']
         except Exception as e:
             file_data['filename'] = str(e)
@@ -113,7 +113,6 @@ class ImageDB:
 async def get_image(request):
     req_size = None
     max_size = False
-    next_cache = False
     b64 = False
     req_ids = []
     images_b64 = []
@@ -148,23 +147,14 @@ async def get_image(request):
         if start_step[0].isdigit():
             id_row = int(start_step[0])
         else:
-            names_ids = request.app['image_dfs'][df_name].return_ids_by_name(start_step[0])
+            name_search = start_step[0].replace('|','/')
+            names_ids = request.app['image_dfs'][df_name].return_ids_by_name(name_search)
             id_row = names_ids[0]
     except Exception as e:
         id_row = 0
 
-    if len(image_req) > 3:
-        try:
-            next_cache = int(image_req[3])
-        except Exception as e:
-            print(e)
-
     if len(start_step) > 1:
         try:
-            if len(start_step[1]) > 0:
-                if start_step[1][0] == 'c':
-                    next_cache = True
-                    start_step[1] = start_step[1][1:]
             if start_step[1] == '':
                 len_id = 1
             else:
@@ -176,9 +166,6 @@ async def get_image(request):
         except Exception as e:
             len_id = 1
             print(e)
-
-        if next_cache:
-            len_id = len_id + 1
             
         if names_ids is None:
             req_ids = [id_row+i for i in range(len_id)]
@@ -200,9 +187,11 @@ async def get_image(request):
     if len(image_req) > 1:
         try:
             if len(image_req[1]) > 0:
-                if image_req[1][0] == 'm':
+                size_str = image_req[1]
+                if size_str[0] == 'm':
                     max_size = True
-                req_size = int(image_req[1])
+                    size_str = size_str[1:]
+                req_size = int(size_str)
         except Exception as e:
             pass
             # print(e)
@@ -297,9 +286,6 @@ async def get_image(request):
                     }
             images_b64.append(new_image64)
     
-    if next_cache and len(images) > 1:
-        images = images[:-1]
-        images_b64 = images_b64[:-1]
     if len(images) > 1 and not b64:
         widths, heights = zip(*(i.size for i in images))
         max_width = max(widths)
@@ -356,7 +342,7 @@ app = web.Application()
 app.add_routes([web.get('/imageml/id/{df_name}/{image_req}', get_image)])
 app.add_routes([web.post('/imageml/id', get_image)])
 app.add_routes([web.get('/imageml/df_len/{df_name}', get_df_len)])
-app.add_routes([web.get('/imageml/scroll', get_df_len)])
+app.add_routes([web.get('/imageml/scroll', get_scroll)])
 app['image_dfs'] = {}
 app['file_cache'] = OrderedDict()
 cors = aiohttp_cors.setup(app, defaults={

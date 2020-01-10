@@ -2,7 +2,6 @@
     <head>
      <meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-        <script src="https://unpkg.com/infinite-scroll@3/dist/infinite-scroll.pkgd.min.js"></script>
         <style>
             div.main {
                 width: 100%;
@@ -18,37 +17,60 @@
     <body>
         <input type="text" id="start_string"/> <button id="start_button">Start</button>
         <br/>
-        <div class="images">
+        <div class="images" id="images">
         </div>
     </body>
     <script>
         $(document).ready(function(){ 
-            $('.but').click(function(){
-                start_string = $('#start_string').text()
+            ready_for_new = 2
+            first_update = 0
+            $('#start_button').click(function(){
+                start_string = $('#start_string').val()
                 if (start_string != ''){
                     //start_string = 'insta/kirill:c1:0'
                     start_string_array = start_string.split(':')
                     if (start_string_array.length == 3){
-                        start_id = start_string_array[2]
+                        start_id = parseInt(start_string_array[2])
                         currect_id = start_id
-                        document.addEventListener("scroll", function (event) {
-                            checkForNewDiv();
-                        });
+
+                        var newDiv = document.createElement("div");
+                        newDiv.setAttribute("id", "div"+currect_id);
+                        new_image_path = [start_string_array[0],start_string_array[1],currect_id].join(':')+'_m1080'
+                        newDiv.innerHTML = "<img src='/imageml/id/" + new_image_path + "'/>";
+                        currect_id = currect_id + 1
+                        document.getElementById("images").appendChild(newDiv);
 
                         var checkForNewDiv = function() {
                             var lastDiv = document.querySelector("#images > div:last-child");
                             var lastDivOffset = lastDiv.offsetTop + lastDiv.clientHeight;
                             var pageOffset = window.pageYOffset + window.innerHeight;
 
-                            if(pageOffset > lastDivOffset - 20) {
+                            if ((pageOffset > lastDivOffset - 100) && (ready_for_new > 0)) {
                                 var newDiv = document.createElement("div");
-                                new_image_path = [start_string_array[0],start_string_array[1],currect_id].join(':')
-                                newDiv.innerHTML = "<img src=/imageml/id/" + new_image_path + "/>";
+                                newDiv.setAttribute("id", "div"+currect_id);
+                                new_image_path = [start_string_array[0],start_string_array[1],currect_id].join(':')+'_m1080'
+                                newDiv.innerHTML = "<img src='/imageml/id/" + new_image_path + "'/>";
                                 currect_id = currect_id + 1
-                                document.getElementById("scroll-content").appendChild(newDiv);
-                                checkForNewDiv();
+                                ready_for_new = ready_for_new - 1
+                                document.getElementById("images").appendChild(newDiv);
+                                var elem = document.getElementById('div'+(currect_id-100));
+                                if (typeof(elem) != 'undefined' && elem != null) {
+                                    elem.innerHTML = ""
+                                }
+                                
                             }
                         };
+
+                        document.addEventListener("scroll", function (event) {
+                            current_time = Date.now()
+                            if ((current_time - first_update > 200) && (ready_for_new < 1)){
+                                ready_for_new = 2
+                                first_update = current_time
+                            } 
+                            if (ready_for_new > 0){
+                                checkForNewDiv();
+                            }
+                        });
                     }
                 }
             });
