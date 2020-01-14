@@ -1,3 +1,4 @@
 aiohttp
 aiohttp-cors
 aiofiles
+rarfile
